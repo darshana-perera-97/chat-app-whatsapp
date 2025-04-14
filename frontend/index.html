@@ -2,47 +2,159 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Add User</title>
+    <title>Add WhatsApp User</title>
   </head>
   <body>
-    <h2>Add WhatsApp User</h2>
+    <h2>Register User</h2>
     <form id="userForm">
-      <label for="number">Phone Number (7XXXXXXXX):</label><br />
-      <input type="text" id="number" name="number" required /><br />
+      <label>Contact Number (7XXXXXXXX):</label><br />
+      <input type="text" id="number" required /><br /><br />
 
-      <label for="name">Name:</label><br />
-      <input type="text" id="name" name="name" required /><br />
+      <label>User Name:</label><br />
+      <input type="text" id="name" required /><br /><br />
 
-      <label for="note">Note:</label><br />
-      <textarea id="note" name="note"></textarea><br /><br />
+      <label>User Age:</label><br />
+      <input type="number" id="age" required /><br /><br />
 
-      <button type="submit">Add User</button>
+      <label>User Gender:</label><br />
+      <select id="gender" required>
+        <option value="">Select...</option>
+        <option value="male">Male</option>
+        <option value="female">Female</option></select
+      ><br /><br />
+
+      <label>Select Your Charactors (Max 5):</label><br />
+      <div id="charactor-options"></div>
+      <br />
+
+      <label>Preferred Age Range:</label><br />
+      From <input type="number" id="ageStart" required /> To
+      <input type="number" id="ageEnd" required /><br /><br />
+
+      <label>Preferred Gender:</label><br />
+      <select id="requestedGender" required>
+        <option value="" disabled default>Select...</option>
+        <option value="male">Male</option>
+        <option value="female">Female</option></select
+      ><br /><br />
+
+      <label>Select Desired Charactors (Max 5):</label><br />
+      <div id="requested-charactors"></div>
+      <br />
+
+      <button type="submit">Submit</button>
     </form>
 
-    <p id="response"></p>
-
     <script>
+      const charactors = [
+        "Kind",
+        "Funny",
+        "Smart",
+        "Loyal",
+        "Creative",
+        "Adventurous",
+        "Romantic",
+        "Confident",
+        "Caring",
+        "Chill",
+      ];
+
+      function renderCheckboxGroup(id, list) {
+        const container = document.getElementById(id);
+        list.forEach((char, i) => {
+          const checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.name = id;
+          checkbox.value = char;
+          checkbox.id = `${id}-${i}`;
+
+          checkbox.addEventListener("change", () => {
+            const checked = document.querySelectorAll(
+              `input[name=${id}]:checked`
+            );
+            if (checked.length > 5) {
+              checkbox.checked = false;
+              alert("You can only select up to 5 traits.");
+            }
+          });
+
+          const label = document.createElement("label");
+          label.htmlFor = `${id}-${i}`;
+          label.innerText = char;
+
+          container.appendChild(checkbox);
+          container.appendChild(label);
+          container.appendChild(document.createElement("br"));
+        });
+      }
+
+      renderCheckboxGroup("charactor-options", charactors);
+      renderCheckboxGroup("requested-charactors", charactors);
+
       document
         .getElementById("userForm")
         .addEventListener("submit", async function (e) {
           e.preventDefault();
 
-          const number = document.getElementById("number").value;
-          const name = document.getElementById("name").value;
-          const note = document.getElementById("note").value;
+          const number = document.getElementById("number").value.trim();
+          const name = document.getElementById("name").value.trim();
+          const age = parseInt(document.getElementById("age").value);
+          const gender = document.getElementById("gender").value;
+          const requestedGender =
+            document.getElementById("requestedGender").value;
+          const ageStart = parseInt(document.getElementById("ageStart").value);
+          const ageEnd = parseInt(document.getElementById("ageEnd").value);
 
-          const response = await fetch("http://localhost:3000/api/add-user", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
+          const getCheckedValues = (name) => {
+            return Array.from(
+              document.querySelectorAll(`input[name=${name}]:checked`)
+            ).map((el) => el.value);
+          };
+
+          const charactors = getCheckedValues("charactor-options");
+          const requestedCharactors = getCheckedValues("requested-charactors");
+
+          if (
+            charactors.length === 0 ||
+            charactors.length > 5 ||
+            requestedCharactors.length === 0 ||
+            requestedCharactors.length > 5
+          ) {
+            alert("Please select up to 5 traits in each category.");
+            return;
+          }
+
+          const payload = {
+            number,
+            name,
+            age,
+            gender,
+            charactors,
+            requestedAgeRange: {
+              start: ageStart,
+              end: ageEnd,
             },
-            body: JSON.stringify({ number, name, note }),
+            requestedGender,
+            requestedCharactors,
+          };
+
+          const response = await fetch("/api/add-user", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
           });
 
           const data = await response.json();
-          document.getElementById("response").textContent =
-            data.message || data.error;
+
+          if (response.ok) {
+            alert("User added successfully!");
+            document.getElementById("userForm").reset();
+            document
+              .querySelectorAll("input[type=checkbox]")
+              .forEach((c) => (c.checked = false));
+          } else {
+            alert("Error: " + (data.error || "Something went wrong"));
+          }
         });
     </script>
   </body>

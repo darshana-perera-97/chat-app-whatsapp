@@ -41,12 +41,38 @@ client.on("message", (message) => {
   console.log(`${currentTime} | Message from ${message.from}: ${message.body}`);
 });
 
-// API to save user data
 app.post("/api/add-user", (req, res) => {
-  const { number, name, note } = req.body;
+  const {
+    number,
+    name,
+    age,
+    gender,
+    charactors,
+    requestedAgeRange,
+    requestedGender,
+    requestedCharactors,
+  } = req.body;
 
   if (!number || !/^7\d{8}$/.test(number)) {
     return res.status(400).json({ error: "Invalid phone number format." });
+  }
+
+  if (
+    !name ||
+    !age ||
+    !gender ||
+    !requestedGender ||
+    !Array.isArray(charactors) ||
+    charactors.length === 0 ||
+    charactors.length > 5 ||
+    !requestedAgeRange ||
+    typeof requestedAgeRange.start !== "number" ||
+    typeof requestedAgeRange.end !== "number" ||
+    !Array.isArray(requestedCharactors) ||
+    requestedCharactors.length === 0 ||
+    requestedCharactors.length > 5
+  ) {
+    return res.status(400).json({ error: "Incomplete or invalid user data." });
   }
 
   const filePath = "users.json";
@@ -57,7 +83,16 @@ app.post("/api/add-user", (req, res) => {
     users = data ? JSON.parse(data) : [];
   }
 
-  users.push({ number, name, note });
+  users.push({
+    number,
+    name,
+    age,
+    gender,
+    charactors,
+    requestedAgeRange,
+    requestedGender,
+    requestedCharactors,
+  });
 
   fs.writeFileSync(filePath, JSON.stringify(users, null, 2));
   res.status(200).json({ message: "User added successfully!" });
