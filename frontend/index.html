@@ -138,7 +138,7 @@
             requestedCharactors,
           };
 
-          const response = await fetch("/api/add-user", {
+          const response = await fetch("http://localhost:3000/api/add-user", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload),
