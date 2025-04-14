@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Add User</title>
+  </head>
+  <body>
+    <h2>Add WhatsApp User</h2>
+    <form id="userForm">
+      <label for="number">Phone Number (7XXXXXXXX):</label><br />
+      <input type="text" id="number" name="number" required /><br />
+
+      <label for="name">Name:</label><br />
+      <input type="text" id="name" name="name" required /><br />
+
+      <label for="note">Note:</label><br />
+      <textarea id="note" name="note"></textarea><br /><br />
+
+      <button type="submit">Add User</button>
+    </form>
+
+    <p id="response"></p>
+
+    <script>
+      document
+        .getElementById("userForm")
+        .addEventListener("submit", async function (e) {
+          e.preventDefault();
+
+          const number = document.getElementById("number").value;
+          const name = document.getElementById("name").value;
+          const note = document.getElementById("note").value;
+
+          const response = await fetch("http://localhost:3000/api/add-user", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ number, name, note }),
+          });
+
+          const data = await response.json();
+          document.getElementById("response").textContent =
+            data.message || data.error;
+        });
+    </script>
+  </body>
+</html>
