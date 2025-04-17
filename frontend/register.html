@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Add WhatsApp User (3‑Step)</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #6366f1;
+      --primary-dark: #4f46e5;
+      --secondary: #f3f4f6;
+      --text: #1f2937;
+      --text-light: #6b7280;
+      --border: #e5e7eb;
+      --success: #10b981;
+      --error: #ef4444;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      line-height: 1.5;
+      color: var(--text);
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      min-height: 100vh;
+      padding: 2rem;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+      padding: 2rem;
+    }
+
+    h2 {
+      text-align: center;
+      margin-bottom: 2rem;
+      color: var(--text);
+      font-size: 1.75rem;
+      font-weight: 600;
+    }
+
+    .form-step {
+      display: none;
+      animation: fadeIn 0.3s ease-in-out;
+    }
+
+    .form-step.active {
+      display: block;
+    }
+
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    input[type="text"],
+    input[type="number"],
+    select {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      font-size: 1rem;
+      transition: all 0.3s ease;
+    }
+
+    input[type="text"]:focus,
+    input[type="number"]:focus,
+    select:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    }
+
+    .checkbox-group {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 1rem;
+      margin-top: 0.5rem;
+    }
+
+    .character-button {
+      padding: 0.75rem 1rem;
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      background: var(--secondary);
+      color: var(--text);
+      font-size: 0.95rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-align: center;
+      user-select: none;
+    }
+
+    .character-button:hover {
+      background: var(--border);
+      transform: translateY(-2px);
+    }
+
+    .character-button.selected {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+      box-shadow: 0 4px 6px rgba(99, 102, 241, 0.2);
+    }
+
+    .character-button.selected:hover {
+      background: var(--primary-dark);
+      transform: translateY(-1px);
+    }
+
+    .character-button:active {
+      transform: translateY(0);
+    }
+
+    .character-button.disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+
+    .buttons {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 2rem;
+      gap: 1rem;
+    }
+
+    button {
+      padding: 0.75rem 1.5rem;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    button[type="submit"] {
+      background: var(--primary);
+      color: white;
+    }
+
+    button[type="submit"]:hover {
+      background: var(--primary-dark);
+    }
+
+    button[type="button"] {
+      background: var(--secondary);
+      color: var(--text);
+    }
+
+    button[type="button"]:hover {
+      background: var(--border);
+    }
+
+    .step-indicator {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 2rem;
+    }
+
+    .step-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--border);
+      margin: 0 5px;
+      transition: all 0.3s ease;
+    }
+
+    .step-dot.active {
+      background: var(--primary);
+      transform: scale(1.2);
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @media (max-width: 640px) {
+      body {
+        padding: 1rem;
+      }
+
+      .container {
+        padding: 1.5rem;
+      }
+
+      .checkbox-group {
+        grid-template-columns: 1fr;
+      }
+
+      .buttons {
+        flex-direction: column;
+      }
+
+      button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Register User (Step <span id="stepIndicator">1</span>/3)</h2>
+    <div class="step-indicator">
+      <div class="step-dot active" data-step="1"></div>
+      <div class="step-dot" data-step="2"></div>
+      <div class="step-dot" data-step="3"></div>
+    </div>
+    <form id="userForm" novalidate>
+      <!-- STEP 1 -->
+      <div class="form-step active" data-step="1">
+        <div class="form-group">
+          <label>Contact Number (7XXXXXXXX)</label>
+          <input type="text" id="number" required />
+        </div>
+
+        <div class="form-group">
+          <label>User Name</label>
+          <input type="text" id="name" required />
+        </div>
+
+        <div class="form-group">
+          <label>User Age</label>
+          <input type="number" id="age" required />
+        </div>
+
+        <div class="form-group">
+          <label>User Gender</label>
+          <select id="gender" required>
+            <option value="">Select...</option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+          </select>
+        </div>
+
+        <div class="buttons">
+          <button type="button" id="next1">Next →</button>
+        </div>
+      </div>
+
+      <!-- STEP 2 -->
+      <div class="form-step" data-step="2">
+        <div class="form-group">
+          <label>Select Your Characters (Max 5)</label>
+          <div id="charactor-options" class="checkbox-group"></div>
+        </div>
+
+        <div class="form-group">
+          <label>Preferred Age Range</label>
+          <div style="display: flex; gap: 1rem;">
+            <div style="flex: 1;">
+              <label>From</label>
+              <input type="number" id="ageStart" required />
+            </div>
+            <div style="flex: 1;">
+              <label>To</label>
+              <input type="number" id="ageEnd" required />
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Preferred Gender</label>
+          <select id="requestedGender" required>
+            <option value="" disabled selected>Select...</option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+          </select>
+        </div>
+
+        <div class="buttons">
+          <button type="button" id="prev2">← Previous</button>
+          <button type="button" id="next2">Next →</button>
+        </div>
+      </div>
+
+      <!-- STEP 3 -->
+      <div class="form-step" data-step="3">
+        <div class="form-group">
+          <label>Select Desired Characters (Max 5)</label>
+          <div id="requested-charactors" class="checkbox-group"></div>
+        </div>
+
+        <div class="buttons">
+          <button type="button" id="prev3">← Previous</button>
+          <button type="submit">Submit</button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    const charactors = [
+      "Kind","Funny","Smart","Loyal","Creative",
+      "Adventurous","Romantic","Confident","Caring","Chill"
+    ];
+
+    // Render character buttons in both steps
+    function renderCharacterButtons(id, list) {
+      const container = document.getElementById(id);
+      container.innerHTML = ''; // Clear existing content
+      
+      list.forEach((char, i) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "character-button";
+        button.dataset.value = char;
+        button.innerText = char;
+        button.id = `${id}-${i}`;
+
+        button.addEventListener("click", () => {
+          const selectedButtons = container.querySelectorAll('.character-button.selected');
+          const maxSelections = 5;
+          
+          if (button.classList.contains('selected')) {
+            button.classList.remove('selected');
+          } else if (selectedButtons.length < maxSelections) {
+            button.classList.add('selected');
+          } else {
+            // Show a subtle notification instead of alert
+            const notification = document.createElement('div');
+            notification.style.position = 'fixed';
+            notification.style.top = '20px';
+            notification.style.left = '50%';
+            notification.style.transform = 'translateX(-50%)';
+            notification.style.padding = '10px 20px';
+            notification.style.background = 'var(--error)';
+            notification.style.color = 'white';
+            notification.style.borderRadius = '8px';
+            notification.style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)';
+            notification.style.zIndex = '1000';
+            notification.innerText = 'You can only select up to 5 traits';
+            document.body.appendChild(notification);
+            setTimeout(() => notification.remove(), 2000);
+          }
+        });
+
+        container.appendChild(button);
+      });
+    }
+
+    renderCharacterButtons("charactor-options", charactors);
+    renderCharacterButtons("requested-charactors", charactors);
+
+    // Update the getCheckedValues function to work with buttons
+    const getCheckedValues = (name) =>
+      Array.from(document.querySelectorAll(`#${name} .character-button.selected`))
+           .map(el => el.dataset.value);
+
+    // Step control
+    let currentStep = 1;
+    const totalSteps = 3;
+    const showStep = (n) => {
+      document.querySelectorAll('.form-step').forEach(div => {
+        div.classList.toggle('active', +div.dataset.step === n);
+      });
+      document.getElementById('stepIndicator').innerText = n;
+      document.querySelectorAll('.step-dot').forEach(dot => {
+        dot.classList.toggle('active', +dot.dataset.step <= n);
+      });
+    };
+
+    const validateStep1 = () => {
+      const num = document.getElementById("number").value.trim();
+      const name = document.getElementById("name").value.trim();
+      const age = document.getElementById("age").value;
+      const gender = document.getElementById("gender").value;
+      if (!num || !name || !age || !gender) {
+        alert("Please fill in all fields in Step 1.");
+        return false;
+      }
+      return true;
+    };
+    const validateStep2 = () => {
+      const selected = document.querySelectorAll(`input[name=charactor-options]:checked`);
+      const start = document.getElementById("ageStart").value;
+      const end   = document.getElementById("ageEnd").value;
+      const reqG  = document.getElementById("requestedGender").value;
+      if (!selected.length) {
+        alert("Select up to 5 personal traits.");
+        return false;
+      }
+      if (!start || !end || +start > +end) {
+        alert("Please enter a valid age range (start ≤ end).");
+        return false;
+      }
+      if (!reqG) {
+        alert("Please select preferred gender.");
+        return false;
+      }
+      return true;
+    };
+
+    document.getElementById("next1").addEventListener("click", () => {
+      if (validateStep1()) {
+        currentStep = 2;
+        showStep(2);
+      }
+    });
+
+    document.getElementById("prev2").addEventListener("click", () => {
+      currentStep = 1;
+      showStep(1);
+    });
+    document.getElementById("next2").addEventListener("click", () => {
+      if (validateStep2()) {
+        currentStep = 3;
+        showStep(3);
+      }
+    });
+    document.getElementById("prev3").addEventListener("click", () => {
+      currentStep = 2;
+      showStep(2);
+    });
+
+    // Final submit
+    document.getElementById("userForm").addEventListener("submit", async function (e) {
+      e.preventDefault();
+      // collect everything
+      const number = document.getElementById("number").value.trim();
+      const name   = document.getElementById("name").value.trim();
+      const age    = parseInt(document.getElementById("age").value);
+      const gender = document.getElementById("gender").value;
+      const requestedGender = document.getElementById("requestedGender").value;
+      const ageStart = parseInt(document.getElementById("ageStart").value);
+      const ageEnd   = parseInt(document.getElementById("ageEnd").value);
+
+      const charactors = getCheckedValues("charactor-options");
+      const requestedCharactors = getCheckedValues("requested-charactors");
+
+      // final sanity
+      if (!charactors.length || !requestedCharactors.length) {
+        alert("Please select up to 5 traits in each category.");
+        return;
+      }
+
+      const payload = {
+        number, name, age, gender,
+        charactors,
+        requestedAgeRange: { start: ageStart, end: ageEnd },
+        requestedGender,
+        requestedCharactors
+      };
+
+      try {
+        const response = await fetch("http://localhost:3000/api/add-user", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const data = await response.json();
+        if (response.ok) {
+          alert("User added successfully!");
+          this.reset();
+          document.querySelectorAll("input[type=checkbox]").forEach(c => c.checked = false);
+          // back to step 1
+          currentStep = 1;
+          showStep(1);
+        } else {
+          alert("Error: " + (data.error || "Something went wrong"));
+        }
+      } catch (err) {
+        alert("Network error: " + err.message);
+      }
+    });
+  </script>
+</body>
+</html>

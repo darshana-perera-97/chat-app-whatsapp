@@ -8,19 +8,17 @@ const cors = require("cors");
 const app = express();
 const PORT = 3000;
 
-// Middleware
 app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static("public"));
 
-// WhatsApp Client Setup
 const client = new Client({
   authStrategy: new LocalAuth(),
   puppeteer: {
     headless: true,
     args: ["--no-sandbox"],
     executablePath:
-      "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe", // adjust for your OS/environment
+      "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe", // adjust as needed
   },
 });
 
@@ -33,48 +31,42 @@ client.on("ready", () => {
   console.log("WhatsApp client is ready and connected!");
 });
 
-// Linked WhatsApp number (admin) configuration
+// Admin config
 const LINKED_NUMBER = "771234567";
 const LINKED_CHAT_ID = `94${LINKED_NUMBER}@c.us`;
 
-// In‑memory mapping of active sessions
-// conversationSessions[number] = { partner, startTime }
+// In‑memory active sessions
+// conversationSessions[localNumber] = { partner, startTime }
 let conversationSessions = {};
 
-// --- Load & Save Users ---
-const usersFilePath = "users.json";
+// Persistence helpers
+const usersFile = "users.json";
+const chatsFile = "chats.json";
+
 const loadUsers = () => {
-  if (!fs.existsSync(usersFilePath)) return [];
-  const data = fs.readFileSync(usersFilePath, "utf-8");
-  return data ? JSON.parse(data) : [];
+  if (!fs.existsSync(usersFile)) return [];
+  return JSON.parse(fs.readFileSync(usersFile, "utf-8") || "[]");
 };
-const saveUsers = (users) => {
-  fs.writeFileSync(usersFilePath, JSON.stringify(users, null, 2));
-};
+const saveUsers = (u) =>
+  fs.writeFileSync(usersFile, JSON.stringify(u, null, 2));
 
-// --- Load & Save Chats ---
-const chatsFilePath = "chats.json";
 const loadChats = () => {
-  if (!fs.existsSync(chatsFilePath)) return [];
-  const data = fs.readFileSync(chatsFilePath, "utf-8");
-  return data ? JSON.parse(data) : [];
+  if (!fs.existsSync(chatsFile)) return [];
+  return JSON.parse(fs.readFileSync(chatsFile, "utf-8") || "[]");
 };
-const saveChats = (chats) => {
-  fs.writeFileSync(chatsFilePath, JSON.stringify(chats, null, 2));
-};
+const saveChats = (c) =>
+  fs.writeFileSync(chatsFile, JSON.stringify(c, null, 2));
 
-// Generate random OTP
 const generateOTP = () =>
   Math.floor(100000 + Math.random() * 900000).toString();
 
-// Send OTP via WhatsApp
 const sendOTP = async (number, otp) => {
   const chatId = `94${number}@c.us`;
-  const message = `You have successfully been added to the system. To continue, type the OTP below and send it back to us.\n\n${otp}`;
-  await client.sendMessage(chatId, message);
+  const msg = `You have successfully been added to the system. To continue, type the OTP below and send it back to us.\n\n${otp}`;
+  await client.sendMessage(chatId, msg);
 };
 
-// API to register user and send OTP
+// Registration endpoint
 app.post("/api/add-user", async (req, res) => {
   const {
     number,
@@ -87,31 +79,29 @@ app.post("/api/add-user", async (req, res) => {
     requestedCharactors,
   } = req.body;
 
-  if (!number || !/^7\d{8}$/.test(number)) {
+  if (!number || !/^7\d{8}$/.test(number))
     return res.status(400).json({ error: "Invalid phone number format." });
-  }
+
   if (
     !name ||
     !age ||
     !gender ||
     !requestedGender ||
     !Array.isArray(charactors) ||
-    charactors.length === 0 ||
+    charactors.length < 1 ||
     charactors.length > 5 ||
     !requestedAgeRange ||
     typeof requestedAgeRange.start !== "number" ||
     typeof requestedAgeRange.end !== "number" ||
     !Array.isArray(requestedCharactors) ||
-    requestedCharactors.length === 0 ||
+    requestedCharactors.length < 1 ||
     requestedCharactors.length > 5
-  ) {
+  )
     return res.status(400).json({ error: "Incomplete or invalid user data." });
-  }
 
   const users = loadUsers();
-  if (users.find((u) => u.number === number)) {
+  if (users.some((u) => u.number === number))
     return res.status(400).json({ error: "User already exists." });
-  }
 
   const otp = generateOTP();
   users.push({
@@ -131,38 +121,70 @@ app.post("/api/add-user", async (req, res) => {
   try {
     await sendOTP(number, otp);
     res.status(200).json({ message: "User added successfully, OTP sent!" });
-  } catch (error) {
-    console.error(error);
+  } catch (err) {
+    console.error(err);
     res.status(500).json({ error: "Failed to send OTP via WhatsApp." });
   }
 });
 
-// WhatsApp message handler
+// Message handler
 client.on("message", async (message) => {
-  const senderNumber = message.from.replace("@c.us", "").slice(-9);
+  // Extract the 9‑digit local number (e.g. "9477...@c.us" → "771234567")
+  const fullNumber = message.from.replace(/@c\.us$/, "");
+  const senderNumber = fullNumber.slice(-9);
 
-  // 1) Admin forwarding
+  // 1) Admin commands
   if (message.from === LINKED_CHAT_ID) {
-    if (message.body.toLowerCase().startsWith("to:")) {
-      const parts = message.body.split(" ");
-      const targetNumber = parts[0].split(":")[1];
-      if (!targetNumber || !/^7\d{8}$/.test(targetNumber)) {
+    const body = message.body.trim();
+    if (body.toLowerCase().startsWith("to:")) {
+      const [_, rest] = body.split(":", 2);
+      const [target, ...parts] = rest.trim().split(" ");
+      if (!/^7\d{8}$/.test(target)) {
         await client.sendMessage(
           LINKED_CHAT_ID,
           "Invalid target number format. Use 7XXXXXXXX."
         );
       } else {
-        const adminMsg = parts.slice(1).join(" ");
-        await client.sendMessage(`94${targetNumber}@c.us`, adminMsg);
-        console.log(`Admin → ${targetNumber}: ${adminMsg}`);
+        const adminMsg = parts.join(" ");
+        await client.sendMessage(`94${target}@c.us`, adminMsg);
+        console.log(`Admin → ${target}: ${adminMsg}`);
       }
-    } else {
-      console.log("Admin message received with no TO: command.");
     }
     return;
   }
 
-  // 2) Forward all non-admin messages to admin
+  // 2) Active 1‑min session?
+  const session = conversationSessions[senderNumber];
+  if (session) {
+    const text = message.body.trim().toLowerCase();
+
+    // 2a) If user wants to end-chat early
+    if (text === "end-chat") {
+      const partner = session.partner;
+      // Notify both sides
+      await client.sendMessage(
+        `94${senderNumber}@c.us`,
+        "Session ended by you"
+      );
+      await client.sendMessage(
+        `94${partner}@c.us`,
+        "Session ended by your friend"
+      );
+      // Clear session
+      delete conversationSessions[senderNumber];
+      delete conversationSessions[partner];
+      console.log(
+        `Session between ${senderNumber} and ${partner} ended by user.`
+      );
+    } else {
+      // 2b) Otherwise relay the message
+      const partnerChatId = `94${session.partner}@c.us`;
+      await client.sendMessage(partnerChatId, message.body);
+    }
+    return; // done
+  }
+
+  // 3) Forward all other messages to admin
   await client.sendMessage(
     LINKED_CHAT_ID,
     `From ${senderNumber}: ${message.body}`
@@ -171,29 +193,28 @@ client.on("message", async (message) => {
   const users = loadUsers();
   const user = users.find((u) => u.number === senderNumber);
 
-  // 3) "start" command to match
+  // 4) "start" command to match
   if (user && user.verified && message.body.trim().toLowerCase() === "start") {
     await message.reply("We will find a friend for you. Wait for a while..");
 
-    const potential = users.filter(
+    const pool = users.filter(
       (u) =>
         u.number !== senderNumber &&
         u.verified &&
         u.gender === user.requestedGender
     );
 
-    if (potential.length > 0) {
-      const pick = potential[Math.floor(Math.random() * potential.length)];
+    if (pool.length) {
+      const pick = pool[Math.floor(Math.random() * pool.length)];
       const pickChatId = `94${pick.number}@c.us`;
 
-      // notify match
       await client.sendMessage(
         pickChatId,
         "Hi, One friend is waiting for you."
       );
       console.log(`Matched ${senderNumber} ↔ ${pick.number}`);
 
-      // store session
+      // record session
       const startTime = new Date();
       conversationSessions[senderNumber] = {
         partner: pick.number,
@@ -221,20 +242,16 @@ client.on("message", async (message) => {
         `Match started between ${senderNumber} and ${pick.number}.`
       );
 
-      // schedule session end in 1 minute
+      // schedule automatic end after 1 minute
       setTimeout(async () => {
-        // still active?
-        const sess = conversationSessions[senderNumber];
-        if (sess && sess.partner === pick.number) {
-          const msgToA = `94${senderNumber}@c.us`;
-          const msgToB = `94${pick.number}@c.us`;
-          await client.sendMessage(msgToA, "session ended");
-          await client.sendMessage(msgToB, "session ended");
-          // clear session
+        const active = conversationSessions[senderNumber];
+        if (active && active.partner === pick.number) {
+          await client.sendMessage(`94${senderNumber}@c.us`, "session ended");
+          await client.sendMessage(`94${pick.number}@c.us`, "session ended");
           delete conversationSessions[senderNumber];
           delete conversationSessions[pick.number];
           console.log(
-            `Session between ${senderNumber} and ${pick.number} ended after 1 minute.`
+            `Session between ${senderNumber} and ${pick.number} ended automatically.`
           );
         }
       }, 60 * 1000);
@@ -247,7 +264,7 @@ client.on("message", async (message) => {
     return;
   }
 
-  // 4) OTP verification
+  // 5) OTP verification
   if (user && !user.verified) {
     if (message.body.trim() === user.otp) {
       user.verified = true;
@@ -267,12 +284,14 @@ client.on("message", async (message) => {
     );
   }
 
-  // log every message
-  const now = new Date().toLocaleString("en-US", { timeZone: "Asia/Colombo" });
+  // 6) Log every message
+  const now = new Date().toLocaleString("en-US", {
+    timeZone: "Asia/Colombo",
+  });
   console.log(`${now} | ${message.from}: ${message.body}`);
 });
 
-// Start server & client
+// Start server & WhatsApp client
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });

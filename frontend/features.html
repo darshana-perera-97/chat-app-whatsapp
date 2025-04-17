@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Features - ChatMatch</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <nav class="navbar">
+        <a href="landing.html" class="logo">
+            <i class="fab fa-whatsapp"></i>
+            <span>ChatMatch</span>
+        </a>
+        <div class="nav-links">
+            <a href="features.html">Features</a>
+            <a href="about.html">About Us</a>
+            <a href="privacy.html">Privacy Policy</a>
+            <a href="terms.html">Terms of Service</a>
+            <a href="register.html" class="register-btn">Register Now</a>
+        </div>
+        <div class="mobile-menu">
+            <button class="mobile-menu-btn">
+                <i class="fas fa-bars"></i>
+            </button>
+            <div class="mobile-menu-content">
+                <button class="close-menu">
+                    <i class="fas fa-times"></i>
+                </button>
+                <a href="features.html">Features</a>
+                <a href="about.html">About Us</a>
+                <a href="index.html">Register</a>
+                <a href="privacy.html">Privacy Policy</a>
+                <a href="terms.html">Terms of Service</a>
+            </div>
+        </div>
+    </nav>
+
+    <section class="content-section">
+        <h1 class="section-title">Our Features</h1>
+        <p class="section-subtitle">Discover what makes ChatMatch the perfect platform for finding your chat partner</p>
+
+        <div class="card">
+            <h3><i class="fas fa-user-friends"></i> Smart Matching System</h3>
+            <p>Our advanced AI-powered matching system analyzes your preferences and interests to find the perfect chat partner for you.</p>
+            <ul class="feature-list">
+                <li><i class="fas fa-check"></i> Personality-based matching</li>
+                <li><i class="fas fa-check"></i> Interest compatibility analysis</li>
+                <li><i class="fas fa-check"></i> Age and gender preferences</li>
+                <li><i class="fas fa-check"></i> Real-time matching updates</li>
+            </ul>
+        </div>
+
+        <div class="card">
+            <h3><i class="fas fa-shield-alt"></i> Privacy & Security</h3>
+            <p>Your privacy and security are our top priorities. We implement industry-leading security measures to protect your data.</p>
+            <ul class="feature-list">
+                <li><i class="fas fa-check"></i> End-to-end encryption</li>
+                <li><i class="fas fa-check"></i> Secure data storage</li>
+                <li><i class="fas fa-check"></i> Privacy controls</li>
+                <li><i class="fas fa-check"></i> Regular security audits</li>
+            </ul>
+        </div>
+
+        <div class="card">
+            <h3><i class="fas fa-comments"></i> Chat Experience</h3>
+            <p>Enjoy a seamless and engaging chat experience with our user-friendly interface and advanced features.</p>
+            <ul class="feature-list">
+                <li><i class="fas fa-check"></i> Real-time messaging</li>
+                <li><i class="fas fa-check"></i> Media sharing</li>
+                <li><i class="fas fa-check"></i> Message reactions</li>
+                <li><i class="fas fa-check"></i> Read receipts</li>
+            </ul>
+        </div>
+
+        <div class="card">
+            <h3><i class="fas fa-mobile-alt"></i> Mobile Experience</h3>
+            <p>Chat on the go with our fully responsive mobile interface that works seamlessly across all devices.</p>
+            <ul class="feature-list">
+                <li><i class="fas fa-check"></i> Responsive design</li>
+                <li><i class="fas fa-check"></i> Push notifications</li>
+                <li><i class="fas fa-check"></i> Offline mode</li>
+                <li><i class="fas fa-check"></i> Cross-platform sync</li>
+            </ul>
+        </div>
+
+        <div class="load-more-container">
+            <a href="features.html" class="load-more-btn">Load More Features</a>
+        </div>
+    </section>
+
+    <footer class="footer">
+        <div class="footer-content">
+            <div class="footer-section">
+                <h3>ChatMatch</h3>
+                <p>Find your perfect chat partner through our intelligent matching system.</p>
+                <div class="social-links">
+                    <a href="#" class="social-link"><i class="fab fa-facebook"></i></a>
+                    <a href="#" class="social-link"><i class="fab fa-twitter"></i></a>
+                    <a href="#" class="social-link"><i class="fab fa-instagram"></i></a>
+                    <a href="#" class="social-link"><i class="fab fa-linkedin"></i></a>
+                </div>
+            </div>
+            <div class="footer-section">
+                <h3>Quick Links</h3>
+                <ul class="footer-links">
+                    <li><a href="features.html">Features</a></li>
+                    <li><a href="about.html">About Us</a></li>
+                    <li><a href="index.html">Register</a></li>
+                    <li><a href="privacy.html">Privacy Policy</a></li>
+                    <li><a href="terms.html">Terms of Service</a></li>
+                </ul>
+            </div>
+            <div class="footer-section">
+                <h3>Contact Us</h3>
+                <ul class="contact-info">
+                    <li><i class="fas fa-envelope"></i> support@chatmatch.com</li>
+                    <li><i class="fas fa-phone"></i> +1 (555) 123-4567</li>
+                    <li><i class="fas fa-map-marker-alt"></i> 123 Chat Street, Digital City</li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2024 ChatMatch. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script>
+        // Mobile menu functionality
+        const mobileMenuBtn = document.querySelector('.mobile-menu-btn');
+        const mobileMenuContent = document.querySelector('.mobile-menu-content');
+        const closeMenuBtn = document.querySelector('.close-menu');
+
+        mobileMenuBtn.addEventListener('click', () => {
+            mobileMenuContent.classList.add('active');
+        });
+
+        closeMenuBtn.addEventListener('click', () => {
+            mobileMenuContent.classList.remove('active');
+        });
+    </script>
+</body>
+</html> 
