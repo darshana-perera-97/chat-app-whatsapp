@@ -19,6 +19,8 @@ const client = new Client({
   puppeteer: {
     headless: true,
     args: ["--no-sandbox"],
+    executablePath:
+      "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe", // adjust for your OS/environment
   },
 });
 
@@ -31,17 +33,34 @@ client.on("ready", () => {
   console.log("WhatsApp client is ready and connected!");
 });
 
-// Load and save user data utility
-const filePath = "users.json";
+// Linked WhatsApp number (admin) configuration
+const LINKED_NUMBER = "771234567";
+const LINKED_CHAT_ID = `94${LINKED_NUMBER}@c.us`;
 
+// In‑memory mapping of active sessions
+// conversationSessions[number] = { partner, startTime }
+let conversationSessions = {};
+
+// --- Load & Save Users ---
+const usersFilePath = "users.json";
 const loadUsers = () => {
-  if (!fs.existsSync(filePath)) return [];
-  const data = fs.readFileSync(filePath, "utf-8");
+  if (!fs.existsSync(usersFilePath)) return [];
+  const data = fs.readFileSync(usersFilePath, "utf-8");
   return data ? JSON.parse(data) : [];
 };
-
 const saveUsers = (users) => {
-  fs.writeFileSync(filePath, JSON.stringify(users, null, 2));
+  fs.writeFileSync(usersFilePath, JSON.stringify(users, null, 2));
+};
+
+// --- Load & Save Chats ---
+const chatsFilePath = "chats.json";
+const loadChats = () => {
+  if (!fs.existsSync(chatsFilePath)) return [];
+  const data = fs.readFileSync(chatsFilePath, "utf-8");
+  return data ? JSON.parse(data) : [];
+};
+const saveChats = (chats) => {
+  fs.writeFileSync(chatsFilePath, JSON.stringify(chats, null, 2));
 };
 
 // Generate random OTP
@@ -50,7 +69,7 @@ const generateOTP = () =>
 
 // Send OTP via WhatsApp
 const sendOTP = async (number, otp) => {
-  const chatId = `94${number}@c.us`; // Assuming Sri Lankan numbers (change if necessary)
+  const chatId = `94${number}@c.us`;
   const message = `You have successfully been added to the system. To continue, type the OTP below and send it back to us.\n\n${otp}`;
   await client.sendMessage(chatId, message);
 };
@@ -71,7 +90,6 @@ app.post("/api/add-user", async (req, res) => {
   if (!number || !/^7\d{8}$/.test(number)) {
     return res.status(400).json({ error: "Invalid phone number format." });
   }
-
   if (
     !name ||
     !age ||
@@ -91,13 +109,11 @@ app.post("/api/add-user", async (req, res) => {
   }
 
   const users = loadUsers();
-
-  if (users.find((user) => user.number === number)) {
+  if (users.find((u) => u.number === number)) {
     return res.status(400).json({ error: "User already exists." });
   }
 
   const otp = generateOTP();
-
   users.push({
     number,
     name,
@@ -110,7 +126,6 @@ app.post("/api/add-user", async (req, res) => {
     verified: false,
     otp,
   });
-
   saveUsers(users);
 
   try {
@@ -122,28 +137,127 @@ app.post("/api/add-user", async (req, res) => {
   }
 });
 
-// WhatsApp message handler for OTP verification
+// WhatsApp message handler
 client.on("message", async (message) => {
-  const users = loadUsers();
-  const senderNumber = message.from.replace("@c.us", "").slice(-9); // Get last 9 digits (Sri Lanka number)
+  const senderNumber = message.from.replace("@c.us", "").slice(-9);
 
+  // 1) Admin forwarding
+  if (message.from === LINKED_CHAT_ID) {
+    if (message.body.toLowerCase().startsWith("to:")) {
+      const parts = message.body.split(" ");
+      const targetNumber = parts[0].split(":")[1];
+      if (!targetNumber || !/^7\d{8}$/.test(targetNumber)) {
+        await client.sendMessage(
+          LINKED_CHAT_ID,
+          "Invalid target number format. Use 7XXXXXXXX."
+        );
+      } else {
+        const adminMsg = parts.slice(1).join(" ");
+        await client.sendMessage(`94${targetNumber}@c.us`, adminMsg);
+        console.log(`Admin → ${targetNumber}: ${adminMsg}`);
+      }
+    } else {
+      console.log("Admin message received with no TO: command.");
+    }
+    return;
+  }
+
+  // 2) Forward all non-admin messages to admin
+  await client.sendMessage(
+    LINKED_CHAT_ID,
+    `From ${senderNumber}: ${message.body}`
+  );
+
+  const users = loadUsers();
   const user = users.find((u) => u.number === senderNumber);
 
+  // 3) "start" command to match
+  if (user && user.verified && message.body.trim().toLowerCase() === "start") {
+    await message.reply("We will find a friend for you. Wait for a while..");
+
+    const potential = users.filter(
+      (u) =>
+        u.number !== senderNumber &&
+        u.verified &&
+        u.gender === user.requestedGender
+    );
+
+    if (potential.length > 0) {
+      const pick = potential[Math.floor(Math.random() * potential.length)];
+      const pickChatId = `94${pick.number}@c.us`;
+
+      // notify match
+      await client.sendMessage(
+        pickChatId,
+        "Hi, One friend is waiting for you."
+      );
+      console.log(`Matched ${senderNumber} ↔ ${pick.number}`);
+
+      // store session
+      const startTime = new Date();
+      conversationSessions[senderNumber] = {
+        partner: pick.number,
+        startTime,
+      };
+      conversationSessions[pick.number] = {
+        partner: senderNumber,
+        startTime,
+      };
+
+      // log to chats.json
+      const chats = loadChats();
+      chats.push({
+        requestedNumber: senderNumber,
+        selectedNumber: pick.number,
+        time: startTime.toLocaleString("en-US", {
+          timeZone: "Asia/Colombo",
+        }),
+      });
+      saveChats(chats);
+
+      // notify admin
+      await client.sendMessage(
+        LINKED_CHAT_ID,
+        `Match started between ${senderNumber} and ${pick.number}.`
+      );
+
+      // schedule session end in 1 minute
+      setTimeout(async () => {
+        // still active?
+        const sess = conversationSessions[senderNumber];
+        if (sess && sess.partner === pick.number) {
+          const msgToA = `94${senderNumber}@c.us`;
+          const msgToB = `94${pick.number}@c.us`;
+          await client.sendMessage(msgToA, "session ended");
+          await client.sendMessage(msgToB, "session ended");
+          // clear session
+          delete conversationSessions[senderNumber];
+          delete conversationSessions[pick.number];
+          console.log(
+            `Session between ${senderNumber} and ${pick.number} ended after 1 minute.`
+          );
+        }
+      }, 60 * 1000);
+    } else {
+      await message.reply(
+        "No matching friend found at the moment. Try again later."
+      );
+      console.log(`No match for ${senderNumber}`);
+    }
+    return;
+  }
+
+  // 4) OTP verification
   if (user && !user.verified) {
     if (message.body.trim() === user.otp) {
       user.verified = true;
       delete user.otp;
-
       saveUsers(users);
-      await message.reply(
-        "✅ Your number has been successfully verified and updated in our system!"
-      );
-      console.log(`User ${senderNumber} verified successfully.`);
+      await message.reply("✅ Your number has been successfully verified!");
+      console.log(`${senderNumber} verified.`);
     } else {
-      await message.reply(
-        "❌ Incorrect OTP. Please check the OTP and try again."
-      );
-      console.log(`User ${senderNumber} entered incorrect OTP.`);
+      await message.reply("❌ Incorrect OTP. Please try again.");
+      console.log(`${senderNumber} OTP mismatch.`);
     }
   } else if (user && user.verified) {
     await message.reply("ℹ️ Your number is already verified.");
@@ -153,16 +267,13 @@ client.on("message", async (message) => {
     );
   }
 
-  const currentTime = new Date().toLocaleString("en-US", {
-    timeZone: "Asia/Colombo",
-  });
-
-  console.log(`${currentTime} | Message from ${message.from}: ${message.body}`);
+  // log every message
+  const now = new Date().toLocaleString("en-US", { timeZone: "Asia/Colombo" });
+  console.log(`${now} | ${message.from}: ${message.body}`);
 });
 
-// Start server and WhatsApp client
+// Start server & client
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
-
 client.initialize();
