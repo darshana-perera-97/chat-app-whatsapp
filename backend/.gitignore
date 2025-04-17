@@ -5,6 +5,7 @@
 /.wwebjs_cache
 /.wwebjs_auth
 /users.json
+/chats.json
 /.pnp
 .pnp.js
 
