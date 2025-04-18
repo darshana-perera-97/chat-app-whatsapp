@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Add WhatsApp User (3‑Step)</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+    />
+    <style>
+      :root {
+        --primary: #25d366;
+        --primary-dark: #128c7e;
+        --secondary: #34b7f1;
+        --accent: #075e54;
+        --text: #1f2937;
+        --text-light: #6b7280;
+        --background: #f8fafc;
+        --white: #ffffff;
+        --border: #e5e7eb;
+        --success: #10b981;
+        --error: #ef4444;
+        --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Inter", sans-serif;
+        line-height: 1.5;
+        color: var(--text);
+        background: var(--background);
+        min-height: 100vh;
+      }
+
+      .navbar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        background: var(--white);
+        padding: 1rem 2rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        box-shadow: var(--shadow);
+        z-index: 1000;
+      }
+
+      .logo {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--primary);
+        text-decoration: none;
+      }
+
+      .logo i {
+        font-size: 2rem;
+      }
+
+      .nav-links {
+        display: flex;
+        gap: 2rem;
+      }
+
+      .nav-links a {
+        color: var(--text);
+        text-decoration: none;
+        font-weight: 500;
+        transition: color 0.3s ease;
+        padding: 0.5rem 1rem;
+      }
+
+      .nav-links a:hover {
+        color: var(--primary);
+      }
+
+      .container {
+        max-width: 800px;
+        margin: 6rem auto 2rem;
+        background: var(--white);
+        border-radius: 16px;
+        box-shadow: var(--shadow);
+        padding: 2rem;
+      }
+
+      h2 {
+        text-align: center;
+        margin-bottom: 2rem;
+        color: var(--text);
+        font-size: 1.75rem;
+        font-weight: 600;
+      }
+
+      .form-step {
+        display: none;
+        animation: fadeIn 0.3s ease-in-out;
+      }
+
+      .form-step.active {
+        display: block;
+      }
+
+      .form-group {
+        margin-bottom: 1.5rem;
+      }
+
+      label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+        color: var(--text);
+      }
+
+      input[type="text"],
+      input[type="number"],
+      select {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border: 2px solid var(--border);
+        border-radius: 8px;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+      }
+
+      input[type="text"]:focus,
+      input[type="number"]:focus,
+      select:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(37, 211, 102, 0.1);
+      }
+
+      .checkbox-group {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 1rem;
+        margin-top: 0.5rem;
+      }
+
+      .character-button {
+        padding: 0.75rem 1rem;
+        border: 2px solid var(--border);
+        border-radius: 8px;
+        background: var(--background);
+        color: var(--text);
+        font-size: 0.95rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-align: center;
+        user-select: none;
+      }
+
+      .character-button:hover {
+        background: var(--border);
+        transform: translateY(-2px);
+      }
+
+      .character-button.selected {
+        background: var(--primary);
+        color: var(--white);
+        border-color: var(--primary);
+        box-shadow: 0 4px 6px rgba(37, 211, 102, 0.2);
+      }
+
+      .character-button.selected:hover {
+        background: var(--primary-dark);
+        transform: translateY(-1px);
+      }
+
+      .character-button:active {
+        transform: translateY(0);
+      }
+
+      .character-button.disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        pointer-events: none;
+      }
+
+      .buttons {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 2rem;
+        gap: 1rem;
+      }
+
+      button {
+        padding: 0.75rem 1.5rem;
+        border: none;
+        border-radius: 8px;
+        font-size: 1rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+
+      button[type="submit"] {
+        background: var(--primary);
+        color: var(--white);
+      }
+
+      button[type="submit"]:hover {
+        background: var(--primary-dark);
+        transform: translateY(-2px);
+      }
+
+      button[type="button"] {
+        background: var(--background);
+        color: var(--text);
+      }
+
+      button[type="button"]:hover {
+        background: var(--border);
+        transform: translateY(-2px);
+      }
+
+      .step-indicator {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 2rem;
+      }
+
+      .step-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: var(--border);
+        margin: 0 5px;
+        transition: all 0.3s ease;
+      }
+
+      .step-dot.active {
+        background: var(--primary);
+        transform: scale(1.2);
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .footer {
+        background: var(--accent);
+        color: var(--white);
+        padding: 4rem 2rem 2rem;
+        margin-top: 4rem;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .footer-content {
+        max-width: 1200px;
+        margin: 0 auto;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 3rem;
+      }
+
+      .footer-section h3 {
+        font-size: 1.25rem;
+        margin-bottom: 1.5rem;
+        color: var(--white);
+        position: relative;
+        padding-bottom: 0.5rem;
+      }
+
+      .footer-section h3::after {
+        content: "";
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 40px;
+        height: 2px;
+        background: var(--primary);
+      }
+
+      .footer-section p {
+        color: rgba(255, 255, 255, 0.8);
+        margin-bottom: 1.5rem;
+        line-height: 1.6;
+      }
+
+      .social-links {
+        display: flex;
+        gap: 1rem;
+      }
+
+      .social-link {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+        color: var(--white);
+        transition: all 0.3s ease;
+      }
+
+      .social-link:hover {
+        background: var(--primary);
+        transform: translateY(-3px);
+      }
+
+      .footer-links {
+        list-style: none;
+      }
+
+      .footer-links li {
+        margin-bottom: 0.75rem;
+      }
+
+      .footer-links a {
+        color: rgba(255, 255, 255, 0.8);
+        text-decoration: none;
+        transition: color 0.3s ease;
+      }
+
+      .footer-links a:hover {
+        color: var(--white);
+      }
+
+      .footer-bottom {
+        max-width: 1200px;
+        margin: 3rem auto 0;
+        padding-top: 2rem;
+        text-align: center;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        color: rgba(255, 255, 255, 0.6);
+      }
+
+      @media (max-width: 640px) {
+        body {
+          padding: 1rem;
+        }
+
+        .container {
+          padding: 1.5rem;
+          margin-top: 5rem;
+        }
+
+        .checkbox-group {
+          grid-template-columns: 1fr;
+        }
+
+        .buttons {
+          flex-direction: column;
+        }
+
+        button {
+          width: 100%;
+        }
+
+        .footer-content {
+          grid-template-columns: 1fr;
+          text-align: center;
+        }
+
+        .footer-section h3::after {
+          left: 50%;
+          transform: translateX(-50%);
+        }
+
+        .social-links {
+          justify-content: center;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="navbar">
+      <a href="landing.html" class="logo">
+        <i class="fab fa-whatsapp"></i>
+        <span>ChatMatch</span>
+      </a>
+      <div class="nav-links">
+        <a href="landing.html#features">Features</a>
+        <a href="landing.html#about">About</a>
+        <a href="register.html" class="register-btn">Register</a>
+      </div>
+    </nav>
+
+    <div class="container">
+      <h2>Register User (Step <span id="stepIndicator">1</span>/3)</h2>
+      <div class="step-indicator">
+        <div class="step-dot active" data-step="1"></div>
+        <div class="step-dot" data-step="2"></div>
+        <div class="step-dot" data-step="3"></div>
+      </div>
+      <form id="userForm" novalidate>
+        <!-- STEP 1 -->
+        <div class="form-step active" data-step="1">
+          <div class="form-group">
+            <label>Contact Number (7XXXXXXXX)</label>
+            <input type="text" id="number" required />
+          </div>
+
+          <div class="form-group">
+            <label>User Name</label>
+            <input type="text" id="name" required />
+          </div>
+
+          <div class="form-group">
+            <label>Nickname</label>
+            <!-- ← added -->
+            <input type="text" id="nickname" required />
+            <!-- ← added -->
+          </div>
+
+          <div class="form-group">
+            <label>User Age</label>
+            <input type="number" id="age" required />
+          </div>
+
+          <div class="form-group">
+            <label>User Gender</label>
+            <select id="gender" required>
+              <option value="">Select...</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+            </select>
+          </div>
+
+          <div class="buttons">
+            <button type="button" id="next1">Next →</button>
+          </div>
+        </div>
+
+        <!-- STEP 2 -->
+        <div class="form-step" data-step="2">
+          <div class="form-group">
+            <label>Select Your Characters (Max 5)</label>
+            <div id="charactor-options" class="checkbox-group"></div>
+          </div>
+
+          <div class="form-group">
+            <label>Preferred Age Range</label>
+            <div style="display: flex; gap: 1rem">
+              <div style="flex: 1">
+                <label>From</label>
+                <input type="number" id="ageStart" required />
+              </div>
+              <div style="flex: 1">
+                <label>To</label>
+                <input type="number" id="ageEnd" required />
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Preferred Gender</label>
+            <select id="requestedGender" required>
+              <option value="" disabled selected>Select...</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+            </select>
+          </div>
+
+          <div class="buttons">
+            <button type="button" id="prev2">← Previous</button>
+            <button type="button" id="next2">Next →</button>
+          </div>
+        </div>
+
+        <!-- STEP 3 -->
+        <div class="form-step" data-step="3">
+          <div class="form-group">
+            <label>Select Desired Characters (Max 5)</label>
+            <div id="requested-charactors" class="checkbox-group"></div>
+          </div>
+
+          <div class="buttons">
+            <button type="button" id="prev3">← Previous</button>
+            <button type="submit">Submit</button>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <footer class="footer">
+      <div class="footer-content">
+        <div class="footer-section">
+          <h3>ChatMatch</h3>
+          <p>
+            Find your perfect chat partner through our intelligent matching
+            system.
+          </p>
+          <div class="social-links">
+            <a href="#" class="social-link"><i class="fab fa-facebook"></i></a>
+            <a href="#" class="social-link"><i class="fab fa-twitter"></i></a>
+            <a href="#" class="social-link"><i class="fab fa-instagram"></i></a>
+            <a href="#" class="social-link"><i class="fab fa-linkedin"></i></a>
+          </div>
+        </div>
+        <div class="footer-section">
+          <h3>Quick Links</h3>
+          <ul class="footer-links">
+            <li><a href="landing.html#features">Features</a></li>
+            <li><a href="landing.html#about">About Us</a></li>
+            <li><a href="register.html">Register</a></li>
+            <li><a href="#">Privacy Policy</a></li>
+            <li><a href="#">Terms of Service</a></li>
+          </ul>
+        </div>
+        <div class="footer-section">
+          <h3>Contact Us</h3>
+          <ul class="footer-links">
+            <li><i class="fas fa-envelope"></i> support@chatmatch.com</li>
+            <li><i class="fas fa-phone"></i> +1 (555) 123-4567</li>
+            <li>
+              <i class="fas fa-map-marker-alt"></i> 123 Chat Street, Digital
+              City
+            </li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>&copy; 2024 ChatMatch. All rights reserved.</p>
+      </div>
+    </footer>
+
+    <script>
+      const charactors = [
+        "Kind",
+        "Funny",
+        "Smart",
+        "Loyal",
+        "Creative",
+        "Adventurous",
+        "Romantic",
+        "Confident",
+        "Caring",
+        "Chill",
+      ];
+
+      // Render character buttons in both steps
+      function renderCharacterButtons(id, list) {
+        const container = document.getElementById(id);
+        container.innerHTML = ""; // Clear existing content
+
+        list.forEach((char, i) => {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "character-button";
+          button.dataset.value = char;
+          button.innerText = char;
+          button.id = `${id}-${i}`;
+
+          button.addEventListener("click", () => {
+            const selectedButtons = container.querySelectorAll(
+              ".character-button.selected"
+            );
+            const maxSelections = 5;
+
+            if (button.classList.contains("selected")) {
+              button.classList.remove("selected");
+            } else if (selectedButtons.length < maxSelections) {
+              button.classList.add("selected");
+            } else {
+              // Show a subtle notification instead of alert
+              const notification = document.createElement("div");
+              notification.style.position = "fixed";
+              notification.style.top = "20px";
+              notification.style.left = "50%";
+              notification.style.transform = "translateX(-50%)";
+              notification.style.padding = "10px 20px";
+              notification.style.background = "var(--error)";
+              notification.style.color = "white";
+              notification.style.borderRadius = "8px";
+              notification.style.boxShadow = "0 4px 6px rgba(0,0,0,0.1)";
+              notification.style.zIndex = "1000";
+              notification.innerText = "You can only select up to 5 traits";
+              document.body.appendChild(notification);
+              setTimeout(() => notification.remove(), 2000);
+            }
+          });
+
+          container.appendChild(button);
+        });
+      }
+
+      renderCharacterButtons("charactor-options", charactors);
+      renderCharacterButtons("requested-charactors", charactors);
+
+      // Update the getCheckedValues function to work with buttons
+      const getCheckedValues = (name) =>
+        Array.from(
+          document.querySelectorAll(`#${name} .character-button.selected`)
+        ).map((el) => el.dataset.value);
+
+      // Step control
+      let currentStep = 1;
+      const totalSteps = 3;
+      const showStep = (n) => {
+        document.querySelectorAll(".form-step").forEach((div) => {
+          div.classList.toggle("active", +div.dataset.step === n);
+        });
+        document.getElementById("stepIndicator").innerText = n;
+        document.querySelectorAll(".step-dot").forEach((dot) => {
+          dot.classList.toggle("active", +dot.dataset.step <= n);
+        });
+      };
+
+      const validateStep1 = () => {
+        const num = document.getElementById("number").value.trim();
+        const name = document.getElementById("name").value.trim();
+        const nickname = document.getElementById("nickname").value.trim();  // ← added
+        const age = document.getElementById("age").value;
+        const gender = document.getElementById("gender").value;
+        if (!num || !name || !age || !gender) {
+          alert("Please fill in all fields in Step 1.");
+          return false;
+        }
+        return true;
+      };
+      const validateStep2 = () => {
+        const selected = document.querySelectorAll(
+          `#charactor-options .character-button.selected`
+        );
+        const start = document.getElementById("ageStart").value;
+        const end = document.getElementById("ageEnd").value;
+        const reqG = document.getElementById("requestedGender").value;
+        if (!selected.length) {
+          alert("Please select at least one personal trait.");
+          return false;
+        }
+        if (!start || !end || +start > +end) {
+          alert("Please enter a valid age range (start ≤ end).");
+          return false;
+        }
+        if (!reqG) {
+          alert("Please select preferred gender.");
+          return false;
+        }
+        return true;
+      };
+
+      document.getElementById("next1").addEventListener("click", () => {
+        if (validateStep1()) {
+          currentStep = 2;
+          showStep(2);
+        }
+      });
+
+      document.getElementById("prev2").addEventListener("click", () => {
+        currentStep = 1;
+        showStep(1);
+      });
+      document.getElementById("next2").addEventListener("click", () => {
+        if (validateStep2()) {
+          currentStep = 3;
+          showStep(3);
+        }
+      });
+      document.getElementById("prev3").addEventListener("click", () => {
+        currentStep = 2;
+        showStep(2);
+      });
+
+      // Final submit
+      document
+        .getElementById("userForm")
+        .addEventListener("submit", async function (e) {
+          e.preventDefault();
+          // collect everything
+          const number = document.getElementById("number").value.trim();
+          const name = document.getElementById("name").value.trim();
+          const age = parseInt(document.getElementById("age").value);
+          const nickname = document.getElementById("nickname").value.trim();  // ← added
+          const gender = document.getElementById("gender").value;
+          const requestedGender =
+            document.getElementById("requestedGender").value;
+          const ageStart = parseInt(document.getElementById("ageStart").value);
+          const ageEnd = parseInt(document.getElementById("ageEnd").value);
+
+          const charactors = getCheckedValues("charactor-options");
+          const requestedCharactors = getCheckedValues("requested-charactors");
+
+          // final sanity
+          if (!charactors.length || !requestedCharactors.length) {
+            alert("Please select up to 5 traits in each category.");
+            return;
+          }
+
+          const payload = {
+            number,
+            name,
+            nickname, 
+            age,
+            gender,
+            charactors,
+            requestedAgeRange: { start: ageStart, end: ageEnd },
+            requestedGender,
+            requestedCharactors,
+          };
+
+          try {
+            const response = await fetch("http://localhost:3000/api/add-user", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Accept: "application/json",
+              },
+              body: JSON.stringify(payload),
+            });
+
+            // Check if the response is JSON
+            const contentType = response.headers.get("content-type");
+            if (!contentType || !contentType.includes("application/json")) {
+              throw new Error(
+                "Unable to connect to the server. Please make sure the backend server is running on port 3000."
+              );
+            }
+
+            const data = await response.json();
+
+            if (response.ok) {
+              alert("User added successfully!");
+              this.reset();
+              // Reset all character buttons
+              document
+                .querySelectorAll(".character-button.selected")
+                .forEach((btn) => {
+                  btn.classList.remove("selected");
+                });
+              // back to step 1
+              currentStep = 1;
+              showStep(1);
+            } else {
+              throw new Error(data.error || "Something went wrong");
+            }
+          } catch (err) {
+            console.error("Error:", err);
+            if (err.message.includes("Failed to fetch")) {
+              alert(
+                "Unable to connect to the server. Please make sure:\n1. The backend server is running\n2. You're using the correct URL (http://localhost:3000)\n3. Your network connection is working"
+              );
+            } else {
+              alert(
+                "Error: " +
+                  (err.message || "Failed to add user. Please try again.")
+              );
+            }
+          }
+        });
+    </script>
+  </body>
+</html>
