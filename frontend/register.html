@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Add WhatsApp User (3‑Step)</title>
+    <title>Add WhatsApp User (4‑Step)</title>
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
       rel="stylesheet"
@@ -126,6 +126,7 @@
 
       input[type="text"],
       input[type="number"],
+      input[type="tel"],
       select {
         width: 100%;
         padding: 0.75rem 1rem;
@@ -137,6 +138,7 @@
 
       input[type="text"]:focus,
       input[type="number"]:focus,
+      input[type="tel"]:focus,
       select:focus {
         outline: none;
         border-color: var(--primary);
@@ -401,46 +403,37 @@
     </nav>
 
     <div class="container">
-      <h2>Register User (Step <span id="stepIndicator">1</span>/3)</h2>
+      <h2>Register User (Step <span id="stepIndicator">1</span>/4)</h2>
       <div class="step-indicator">
         <div class="step-dot active" data-step="1"></div>
         <div class="step-dot" data-step="2"></div>
         <div class="step-dot" data-step="3"></div>
+        <div class="step-dot" data-step="4"></div>
       </div>
       <form id="userForm" novalidate>
         <!-- STEP 1 -->
         <div class="form-step active" data-step="1">
           <div class="form-group">
             <label>Contact Number (7XXXXXXXX)</label>
-            <input type="text" id="number" required />
+            <input
+              type="tel"
+              id="number"
+              placeholder="7XXXXXXXX"
+              inputmode="numeric"
+              pattern="[0-9]{9}"
+              maxlength="9"
+              title="Enter exactly 9 digits"
+              required
+            />
           </div>
-
           <div class="form-group">
             <label>User Name</label>
             <input type="text" id="name" required />
           </div>
-
           <div class="form-group">
             <label>Nickname</label>
-            <!-- ← added -->
             <input type="text" id="nickname" required />
-            <!-- ← added -->
           </div>
-
-          <div class="form-group">
-            <label>User Age</label>
-            <input type="number" id="age" required />
-          </div>
-
-          <div class="form-group">
-            <label>User Gender</label>
-            <select id="gender" required>
-              <option value="">Select...</option>
-              <option value="male">Male</option>
-              <option value="female">Female</option>
-            </select>
-          </div>
-
           <div class="buttons">
             <button type="button" id="next1">Next →</button>
           </div>
@@ -449,10 +442,29 @@
         <!-- STEP 2 -->
         <div class="form-step" data-step="2">
           <div class="form-group">
+            <label>User Age</label>
+            <input type="number" id="age" required />
+          </div>
+          <div class="form-group">
+            <label>User Gender</label>
+            <select id="gender" required>
+              <option value="">Select...</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+            </select>
+          </div>
+          <div class="form-group">
             <label>Select Your Characters (Max 5)</label>
             <div id="charactor-options" class="checkbox-group"></div>
           </div>
+          <div class="buttons">
+            <button type="button" id="prev2">← Previous</button>
+            <button type="button" id="next2">Next →</button>
+          </div>
+        </div>
 
+        <!-- STEP 3 -->
+        <div class="form-step" data-step="3">
           <div class="form-group">
             <label>Preferred Age Range</label>
             <div style="display: flex; gap: 1rem">
@@ -466,7 +478,6 @@
               </div>
             </div>
           </div>
-
           <div class="form-group">
             <label>Preferred Gender</label>
             <select id="requestedGender" required>
@@ -475,22 +486,24 @@
               <option value="female">Female</option>
             </select>
           </div>
-
-          <div class="buttons">
-            <button type="button" id="prev2">← Previous</button>
-            <button type="button" id="next2">Next →</button>
-          </div>
-        </div>
-
-        <!-- STEP 3 -->
-        <div class="form-step" data-step="3">
           <div class="form-group">
             <label>Select Desired Characters (Max 5)</label>
             <div id="requested-charactors" class="checkbox-group"></div>
           </div>
-
           <div class="buttons">
             <button type="button" id="prev3">← Previous</button>
+            <button type="button" id="next3">Next →</button>
+          </div>
+        </div>
+
+        <!-- STEP 4: SUMMARY -->
+        <div class="form-step" data-step="4">
+          <div class="form-group">
+            <label>Summary</label>
+            <p id="summaryParagraph"></p>
+          </div>
+          <div class="buttons">
+            <button type="button" id="prev4">← Previous</button>
             <button type="submit">Submit</button>
           </div>
         </div>
@@ -553,10 +566,9 @@
         "Chill",
       ];
 
-      // Render character buttons in both steps
       function renderCharacterButtons(id, list) {
         const container = document.getElementById(id);
-        container.innerHTML = ""; // Clear existing content
+        container.innerHTML = "";
 
         list.forEach((char, i) => {
           const button = document.createElement("button");
@@ -567,31 +579,21 @@
           button.id = `${id}-${i}`;
 
           button.addEventListener("click", () => {
-            const selectedButtons = container.querySelectorAll(
+            const selected = container.querySelectorAll(
               ".character-button.selected"
             );
-            const maxSelections = 5;
-
             if (button.classList.contains("selected")) {
               button.classList.remove("selected");
-            } else if (selectedButtons.length < maxSelections) {
+            } else if (selected.length < 5) {
               button.classList.add("selected");
             } else {
-              // Show a subtle notification instead of alert
-              const notification = document.createElement("div");
-              notification.style.position = "fixed";
-              notification.style.top = "20px";
-              notification.style.left = "50%";
-              notification.style.transform = "translateX(-50%)";
-              notification.style.padding = "10px 20px";
-              notification.style.background = "var(--error)";
-              notification.style.color = "white";
-              notification.style.borderRadius = "8px";
-              notification.style.boxShadow = "0 4px 6px rgba(0,0,0,0.1)";
-              notification.style.zIndex = "1000";
-              notification.innerText = "You can only select up to 5 traits";
-              document.body.appendChild(notification);
-              setTimeout(() => notification.remove(), 2000);
+              const notify = document.createElement("div");
+              notify.style.cssText =
+                "position:fixed;top:20px;left:50%;transform:translateX(-50%);" +
+                "padding:10px 20px;background:#ef4444;color:#fff;border-radius:8px;z-index:1000;";
+              notify.innerText = "You can only select up to 5 traits";
+              document.body.appendChild(notify);
+              setTimeout(() => notify.remove(), 2000);
             }
           });
 
@@ -602,15 +604,13 @@
       renderCharacterButtons("charactor-options", charactors);
       renderCharacterButtons("requested-charactors", charactors);
 
-      // Update the getCheckedValues function to work with buttons
-      const getCheckedValues = (name) =>
+      const getCheckedValues = (id) =>
         Array.from(
-          document.querySelectorAll(`#${name} .character-button.selected`)
+          document.querySelectorAll(`#${id} .character-button.selected`)
         ).map((el) => el.dataset.value);
 
-      // Step control
       let currentStep = 1;
-      const totalSteps = 3;
+      const totalSteps = 4;
       const showStep = (n) => {
         document.querySelectorAll(".form-step").forEach((div) => {
           div.classList.toggle("active", +div.dataset.step === n);
@@ -624,32 +624,46 @@
       const validateStep1 = () => {
         const num = document.getElementById("number").value.trim();
         const name = document.getElementById("name").value.trim();
-        const nickname = document.getElementById("nickname").value.trim();  // ← added
-        const age = document.getElementById("age").value;
-        const gender = document.getElementById("gender").value;
-        if (!num || !name || !age || !gender) {
-          alert("Please fill in all fields in Step 1.");
+        const nick = document.getElementById("nickname").value.trim();
+        if (!/^\d{9}$/.test(num)) {
+          alert("Please enter a valid 9‑digit contact number.");
+          return false;
+        }
+        if (!num || !name || !nick) {
+          alert("Please fill in all fields in Step 1.");
           return false;
         }
         return true;
       };
       const validateStep2 = () => {
-        const selected = document.querySelectorAll(
-          `#charactor-options .character-button.selected`
-        );
-        const start = document.getElementById("ageStart").value;
-        const end = document.getElementById("ageEnd").value;
-        const reqG = document.getElementById("requestedGender").value;
-        if (!selected.length) {
+        const age = document.getElementById("age").value;
+        const gender = document.getElementById("gender").value;
+        const chars = getCheckedValues("charactor-options");
+        if (!age || !gender) {
+          alert("Please enter your age and gender.");
+          return false;
+        }
+        if (chars.length === 0) {
           alert("Please select at least one personal trait.");
           return false;
         }
+        return true;
+      };
+      const validateStep3 = () => {
+        const start = document.getElementById("ageStart").value;
+        const end = document.getElementById("ageEnd").value;
+        const reqG = document.getElementById("requestedGender").value;
+        const reqChars = getCheckedValues("requested-charactors");
         if (!start || !end || +start > +end) {
-          alert("Please enter a valid age range (start ≤ end).");
+          alert("Please enter a valid preferred age range.");
           return false;
         }
         if (!reqG) {
-          alert("Please select preferred gender.");
+          alert("Please select a preferred gender.");
+          return false;
+        }
+        if (reqChars.length === 0) {
+          alert("Please select at least one desired trait.");
           return false;
         }
         return true;
@@ -661,7 +675,6 @@
           showStep(2);
         }
       });
-
       document.getElementById("prev2").addEventListener("click", () => {
         currentStep = 1;
         showStep(1);
@@ -676,75 +689,83 @@
         currentStep = 2;
         showStep(2);
       });
+      document.getElementById("next3").addEventListener("click", () => {
+        if (validateStep3()) {
+          buildSummary();
+          currentStep = 4;
+          showStep(4);
+        }
+      });
+      document.getElementById("prev4").addEventListener("click", () => {
+        currentStep = 3;
+        showStep(3);
+      });
 
-      // Final submit
+      function buildSummary() {
+        const number = document.getElementById("number").value.trim();
+        const name = document.getElementById("name").value.trim();
+        const nickname = document.getElementById("nickname").value.trim();
+        const age = document.getElementById("age").value;
+        const gender = document.getElementById("gender").value;
+        const chars = getCheckedValues("charactor-options").join(", ");
+        const ageStart = document.getElementById("ageStart").value;
+        const ageEnd = document.getElementById("ageEnd").value;
+        const requestedGender =
+          document.getElementById("requestedGender").value;
+        const reqChars = getCheckedValues("requested-charactors").join(", ");
+
+        const summaryText = `
+          You are <strong>${name}</strong> (${nickname}), a ${age}‑year‑old ${gender} with phone number ${number}.<br/>
+          You describe yourself as: ${chars}.<br/>
+          You are looking for <strong>${requestedGender}</strong> aged ${ageStart} to ${ageEnd} with traits: ${reqChars}.
+        `;
+        document.getElementById("summaryParagraph").innerHTML = summaryText;
+      }
+
       document
         .getElementById("userForm")
         .addEventListener("submit", async function (e) {
           e.preventDefault();
-          // collect everything
-          const number = document.getElementById("number").value.trim();
-          const name = document.getElementById("name").value.trim();
-          const age = parseInt(document.getElementById("age").value);
-          const nickname = document.getElementById("nickname").value.trim();  // ← added
-          const gender = document.getElementById("gender").value;
-          const requestedGender =
-            document.getElementById("requestedGender").value;
-          const ageStart = parseInt(document.getElementById("ageStart").value);
-          const ageEnd = parseInt(document.getElementById("ageEnd").value);
-
-          const charactors = getCheckedValues("charactor-options");
-          const requestedCharactors = getCheckedValues("requested-charactors");
-
-          // final sanity
-          if (!charactors.length || !requestedCharactors.length) {
-            alert("Please select up to 5 traits in each category.");
-            return;
-          }
-
           const payload = {
-            number,
-            name,
-            nickname, 
-            age,
-            gender,
-            charactors,
-            requestedAgeRange: { start: ageStart, end: ageEnd },
-            requestedGender,
-            requestedCharactors,
+            number: document.getElementById("number").value.trim(),
+            name: document.getElementById("name").value.trim(),
+            nickname: document.getElementById("nickname").value.trim(),
+            age: parseInt(document.getElementById("age").value),
+            gender: document.getElementById("gender").value,
+            charactors: getCheckedValues("charactor-options"),
+            requestedAgeRange: {
+              start: parseInt(document.getElementById("ageStart").value),
+              end: parseInt(document.getElementById("ageEnd").value),
+            },
+            requestedGender: document.getElementById("requestedGender").value,
+            requestedCharactors: getCheckedValues("requested-charactors"),
           };
 
           try {
-            const response = await fetch("http://69.197.187.24:5020/api/add-user", {
-            // const response = await fetch("http://localhost:5020/api/add-user", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Accept: "application/json",
-              },
-              body: JSON.stringify(payload),
-            });
-
-            // Check if the response is JSON
+            const response = await fetch(
+              "http://69.197.187.24:5020/api/add-user",
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Accept: "application/json",
+                },
+                body: JSON.stringify(payload),
+              }
+            );
             const contentType = response.headers.get("content-type");
             if (!contentType || !contentType.includes("application/json")) {
               throw new Error(
-                "Unable to connect to the server. Please make sure the backend server is running on port 3000."
+                "Unable to connect to the server. Please make sure the backend server is running."
               );
             }
-
             const data = await response.json();
-
             if (response.ok) {
               alert("User added successfully!");
               this.reset();
-              // Reset all character buttons
               document
                 .querySelectorAll(".character-button.selected")
-                .forEach((btn) => {
-                  btn.classList.remove("selected");
-                });
-              // back to step 1
+                .forEach((btn) => btn.classList.remove("selected"));
               currentStep = 1;
               showStep(1);
             } else {
@@ -752,16 +773,10 @@
             }
           } catch (err) {
             console.error("Error:", err);
-            if (err.message.includes("Failed to fetch")) {
-              alert(
-                "Unable to connect to the server. Please make sure:\n1. The backend server is running\n2. You're using the correct URL (http://localhost:3000)\n3. Your network connection is working"
-              );
-            } else {
-              alert(
-                "Error: " +
-                  (err.message || "Failed to add user. Please try again.")
-              );
-            }
+            alert(
+              "Error: " +
+                (err.message || "Failed to add user. Please try again.")
+            );
           }
         });
     </script>
