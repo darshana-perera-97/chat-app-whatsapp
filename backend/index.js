@@ -6,19 +6,56 @@ const bodyParser = require("body-parser");
 const cors = require("cors");
 
 const app = express();
-const PORT = 3000;
+const PORT = 5020;
 
 app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static("public"));
+
+// --- cross‑platform Chrome/Chromium resolution ---
+const chromePaths = {
+  win32: [
+    "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+    "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
+  ],
+  linux: [
+    "/usr/bin/google-chrome-stable",
+    "/usr/bin/google-chrome",
+    "/usr/bin/chromium-browser",
+    "/usr/bin/chromium",
+  ],
+  darwin: ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"],
+};
+
+function resolveChromeExecutable() {
+  const plat = process.platform;
+  const candidates = chromePaths[plat] || [];
+  for (let p of candidates) {
+    try {
+      fs.accessSync(p, fs.constants.X_OK);
+      return p;
+    } catch (e) {
+      // not found or not executable
+    }
+  }
+  throw new Error(
+    `Cannot find Chrome executable on platform "${plat}". Tried:\n${candidates.join(
+      "\n"
+    )}`
+  );
+}
+
+// allow override via env var
+const customChromePath = process.env.CHROME_PATH;
+const executablePath = customChromePath || resolveChromeExecutable();
+// --------------------------------------------------
 
 const client = new Client({
   authStrategy: new LocalAuth(),
   puppeteer: {
     headless: true,
     args: ["--no-sandbox"],
-    executablePath:
-      "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe", // adjust as needed
+    executablePath,
   },
 });
 
@@ -36,78 +73,69 @@ const LINKED_NUMBER = "752689058";
 const LINKED_CHAT_ID = `94${LINKED_NUMBER}@c.us`;
 
 // In‑memory active sessions
-let conversationSessions = {}; // { [localNumber]: { partner, startTime, waitingForExtension?, extensionApproved? } }
-let handshakeSessions = {}; // { ["req-part"]: { requester, partner } }
+let conversationSessions = {};
+let handshakeSessions = {};
 
-// schedules the warning (25‑s before end) and session end/extension
+// schedule warnings and session end/extension
 function scheduleSessionEnd(requester, partner) {
-  const reqId = requester;
-  const parId = partner;
-
-  // reset flags
-  [reqId, parId].forEach(id => {
+  [requester, partner].forEach((id) => {
     if (conversationSessions[id]) {
       conversationSessions[id].waitingForExtension = false;
       conversationSessions[id].extensionApproved = false;
     }
   });
 
-  // 1) Warning at 35 seconds (gives 25s to reply)
+  // warning at 35s
   setTimeout(async () => {
-    const sess = conversationSessions[reqId];
-    if (sess && sess.partner === parId) {
-      [reqId, parId].forEach(id => {
+    const sess = conversationSessions[requester];
+    if (sess && sess.partner === partner) {
+      [requester, partner].forEach((id) => {
         conversationSessions[id].waitingForExtension = true;
       });
       await client.sendMessage(
-        `94${reqId}@c.us`,
+        `94${requester}@c.us`,
         "Session is about to end. If you want to continue, type yes."
       );
       await client.sendMessage(
-        `94${parId}@c.us`,
+        `94${partner}@c.us`,
         "Session is about to end. If you want to continue, type yes."
       );
     }
   }, 35 * 1000);
 
-  // 2) End or extend at 60 seconds
+  // end or extend at 60s
   setTimeout(async () => {
-    const sess = conversationSessions[reqId];
-    if (sess && sess.partner === parId) {
+    const sess = conversationSessions[requester];
+    if (sess && sess.partner === partner) {
       const approved =
-        conversationSessions[reqId].extensionApproved ||
-        conversationSessions[parId].extensionApproved;
+        conversationSessions[requester].extensionApproved ||
+        conversationSessions[partner].extensionApproved;
 
       if (approved) {
-        // clear flags
-        [reqId, parId].forEach(id => {
+        [requester, partner].forEach((id) => {
           delete conversationSessions[id].waitingForExtension;
           delete conversationSessions[id].extensionApproved;
         });
-        // notify extension
         await client.sendMessage(
-          `94${reqId}@c.us`,
+          `94${requester}@c.us`,
           "✅ Session extended for another minute."
         );
         await client.sendMessage(
-          `94${parId}@c.us`,
+          `94${partner}@c.us`,
           "✅ Session extended for another minute."
         );
-        console.log(`Session between ${reqId} and ${parId} extended.`);
-        // re‑schedule
-        scheduleSessionEnd(reqId, parId);
+        console.log(`Session between ${requester} and ${partner} extended.`);
+        scheduleSessionEnd(requester, partner);
       } else {
-        // no extension → end
-        await client.sendMessage(`94${reqId}@c.us`, "session ended");
-        await client.sendMessage(`94${parId}@c.us`, "session ended");
-        delete conversationSessions[reqId];
-        delete conversationSessions[parId];
-        console.log(`Session between ${reqId} and ${parId} ended.`);
+        await client.sendMessage(`94${requester}@c.us`, "session ended");
+        await client.sendMessage(`94${partner}@c.us`, "session ended");
+        delete conversationSessions[requester];
+        delete conversationSessions[partner];
+        console.log(`Session between ${requester} and ${partner} ended.`);
       }
     }
   }, 60 * 1000);
 }
-
 
 // Persistence helpers
 const usersFile = "users.json";
@@ -150,11 +178,9 @@ app.post("/api/add-user", async (req, res) => {
     requestedCharactors,
   } = req.body;
 
-  // Validate phone
   if (!number || !/^7\d{8}$/.test(number))
     return res.status(400).json({ error: "Invalid phone number format." });
 
-  // Validate required fields
   if (
     !nickname ||
     !name ||
@@ -202,16 +228,14 @@ app.post("/api/add-user", async (req, res) => {
   }
 });
 
-// Message handler
 client.on("message", async (message) => {
   const fullNumber = message.from.replace(/@c\.us$/, "");
   const senderNumber = fullNumber.slice(-9);
 
-  // 0) Handshake acceptance?
+  // 0) handshake acceptance
   for (const key in handshakeSessions) {
     const hs = handshakeSessions[key];
     if (senderNumber === hs.partner) {
-      // Partner has replied within 30s → finalize match
       const users = loadUsers();
       const requesterUser = users.find((u) => u.number === hs.requester);
       const partnerUser = users.find((u) => u.number === hs.partner);
@@ -219,7 +243,6 @@ client.on("message", async (message) => {
       const partnerChatId = message.from;
       const startTime = new Date();
 
-      // Notify both sides
       await client.sendMessage(
         requesterChatId,
         `${partnerUser.nickname} is ready to chat with you`
@@ -229,44 +252,30 @@ client.on("message", async (message) => {
         `You are now connected with ${requesterUser.nickname}`
       );
 
-      // Record session
-      conversationSessions[hs.requester] = {
-        partner: hs.partner,
-        startTime,
-      };
-      conversationSessions[hs.partner] = {
-        partner: hs.requester,
-        startTime,
-      };
+      conversationSessions[hs.requester] = { partner: hs.partner, startTime };
+      conversationSessions[hs.partner] = { partner: hs.requester, startTime };
 
-      // Log chat
       const chats = loadChats();
       chats.push({
         requestedNumber: hs.requester,
         selectedNumber: hs.partner,
-        time: startTime.toLocaleString("en-US", {
-          timeZone: "Asia/Colombo",
-        }),
+        time: startTime.toLocaleString("en-US", { timeZone: "Asia/Colombo" }),
       });
       saveChats(chats);
 
-      // Notify admin
       await client.sendMessage(
         LINKED_CHAT_ID,
         `Match started between ${hs.requester} ↔ ${hs.partner}.`
       );
       console.log(`Match confirmed: ${hs.requester} ↔ ${hs.partner}`);
 
-      // Schedule automatic end/extension checks
       scheduleSessionEnd(hs.requester, hs.partner);
-
-      // Clean up handshake
       delete handshakeSessions[key];
       return;
     }
   }
 
-  // 1) Admin commands
+  // 1) admin commands
   if (message.from === LINKED_CHAT_ID) {
     const body = message.body.trim();
     if (body.toLowerCase().startsWith("to:")) {
@@ -286,13 +295,12 @@ client.on("message", async (message) => {
     return;
   }
 
-  // 2) Active 1‑minute (or extended) chat?
+  // 2) active session?
   const session = conversationSessions[senderNumber];
   if (session) {
     const partner = session.partner;
     const text = message.body.trim().toLowerCase();
 
-    // --- Handle "yes" for extension ---
     if (session.waitingForExtension && text === "yes") {
       [senderNumber, partner].forEach((id) => {
         if (conversationSessions[id]) {
@@ -306,7 +314,6 @@ client.on("message", async (message) => {
       return;
     }
 
-    // --- Handle early end ---
     if (text === "end") {
       await client.sendMessage(
         `94${senderNumber}@c.us`,
@@ -322,13 +329,12 @@ client.on("message", async (message) => {
         `Session between ${senderNumber} and ${partner} ended by user.`
       );
     } else {
-      // Relay all other messages
       await client.sendMessage(`94${partner}@c.us`, message.body);
     }
     return;
   }
 
-  // 3) Forward everything else to admin
+  // 3) forward to admin
   await client.sendMessage(
     LINKED_CHAT_ID,
     `From ${senderNumber}: ${message.body}`
@@ -337,7 +343,7 @@ client.on("message", async (message) => {
   const users = loadUsers();
   const user = users.find((u) => u.number === senderNumber);
 
-  // 4) "start" command to initiate handshake
+  // 4) "start" command
   if (user && user.verified && message.body.trim().toLowerCase() === "start") {
     await message.reply("We will find a friend for you. Please wait...");
     const pool = users.filter(
@@ -350,8 +356,8 @@ client.on("message", async (message) => {
       const pick = pool[Math.floor(Math.random() * pool.length)];
       const requesterChatId = `94${senderNumber}@c.us`;
       const pickChatId = `94${pick.number}@c.us`;
-
       const key = `${senderNumber}-${pick.number}`;
+
       handshakeSessions[key] = {
         requester: senderNumber,
         partner: pick.number,
@@ -402,14 +408,11 @@ client.on("message", async (message) => {
     );
   }
 
-  // 6) Log every message
-  const now = new Date().toLocaleString("en-US", {
-    timeZone: "Asia/Colombo",
-  });
+  // 6) log every message
+  const now = new Date().toLocaleString("en-US", { timeZone: "Asia/Colombo" });
   console.log(`${now} | ${message.from}: ${message.body}`);
 });
 
-// Start server & WhatsApp client
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
