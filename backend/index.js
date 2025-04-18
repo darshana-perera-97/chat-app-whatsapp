@@ -32,12 +32,82 @@ client.on("ready", () => {
 });
 
 // Admin config
-const LINKED_NUMBER = "771234567";
+const LINKED_NUMBER = "752689058";
 const LINKED_CHAT_ID = `94${LINKED_NUMBER}@c.us`;
 
 // In‑memory active sessions
-// conversationSessions[localNumber] = { partner, startTime }
-let conversationSessions = {};
+let conversationSessions = {}; // { [localNumber]: { partner, startTime, waitingForExtension?, extensionApproved? } }
+let handshakeSessions = {}; // { ["req-part"]: { requester, partner } }
+
+// schedules the warning (25‑s before end) and session end/extension
+function scheduleSessionEnd(requester, partner) {
+  const reqId = requester;
+  const parId = partner;
+
+  // reset flags
+  [reqId, parId].forEach(id => {
+    if (conversationSessions[id]) {
+      conversationSessions[id].waitingForExtension = false;
+      conversationSessions[id].extensionApproved = false;
+    }
+  });
+
+  // 1) Warning at 35 seconds (gives 25s to reply)
+  setTimeout(async () => {
+    const sess = conversationSessions[reqId];
+    if (sess && sess.partner === parId) {
+      [reqId, parId].forEach(id => {
+        conversationSessions[id].waitingForExtension = true;
+      });
+      await client.sendMessage(
+        `94${reqId}@c.us`,
+        "Session is about to end. If you want to continue, type yes."
+      );
+      await client.sendMessage(
+        `94${parId}@c.us`,
+        "Session is about to end. If you want to continue, type yes."
+      );
+    }
+  }, 35 * 1000);
+
+  // 2) End or extend at 60 seconds
+  setTimeout(async () => {
+    const sess = conversationSessions[reqId];
+    if (sess && sess.partner === parId) {
+      const approved =
+        conversationSessions[reqId].extensionApproved ||
+        conversationSessions[parId].extensionApproved;
+
+      if (approved) {
+        // clear flags
+        [reqId, parId].forEach(id => {
+          delete conversationSessions[id].waitingForExtension;
+          delete conversationSessions[id].extensionApproved;
+        });
+        // notify extension
+        await client.sendMessage(
+          `94${reqId}@c.us`,
+          "✅ Session extended for another minute."
+        );
+        await client.sendMessage(
+          `94${parId}@c.us`,
+          "✅ Session extended for another minute."
+        );
+        console.log(`Session between ${reqId} and ${parId} extended.`);
+        // re‑schedule
+        scheduleSessionEnd(reqId, parId);
+      } else {
+        // no extension → end
+        await client.sendMessage(`94${reqId}@c.us`, "session ended");
+        await client.sendMessage(`94${parId}@c.us`, "session ended");
+        delete conversationSessions[reqId];
+        delete conversationSessions[parId];
+        console.log(`Session between ${reqId} and ${parId} ended.`);
+      }
+    }
+  }, 60 * 1000);
+}
+
 
 // Persistence helpers
 const usersFile = "users.json";
@@ -71,6 +141,7 @@ app.post("/api/add-user", async (req, res) => {
   const {
     number,
     name,
+    nickname,
     age,
     gender,
     charactors,
@@ -79,10 +150,13 @@ app.post("/api/add-user", async (req, res) => {
     requestedCharactors,
   } = req.body;
 
+  // Validate phone
   if (!number || !/^7\d{8}$/.test(number))
     return res.status(400).json({ error: "Invalid phone number format." });
 
+  // Validate required fields
   if (
+    !nickname ||
     !name ||
     !age ||
     !gender ||
@@ -107,6 +181,7 @@ app.post("/api/add-user", async (req, res) => {
   users.push({
     number,
     name,
+    nickname,
     age,
     gender,
     charactors,
@@ -129,9 +204,67 @@ app.post("/api/add-user", async (req, res) => {
 
 // Message handler
 client.on("message", async (message) => {
-  // Extract the 9‑digit local number (e.g. "9477...@c.us" → "771234567")
   const fullNumber = message.from.replace(/@c\.us$/, "");
   const senderNumber = fullNumber.slice(-9);
+
+  // 0) Handshake acceptance?
+  for (const key in handshakeSessions) {
+    const hs = handshakeSessions[key];
+    if (senderNumber === hs.partner) {
+      // Partner has replied within 30s → finalize match
+      const users = loadUsers();
+      const requesterUser = users.find((u) => u.number === hs.requester);
+      const partnerUser = users.find((u) => u.number === hs.partner);
+      const requesterChatId = `94${hs.requester}@c.us`;
+      const partnerChatId = message.from;
+      const startTime = new Date();
+
+      // Notify both sides
+      await client.sendMessage(
+        requesterChatId,
+        `${partnerUser.nickname} is ready to chat with you`
+      );
+      await client.sendMessage(
+        partnerChatId,
+        `You are now connected with ${requesterUser.nickname}`
+      );
+
+      // Record session
+      conversationSessions[hs.requester] = {
+        partner: hs.partner,
+        startTime,
+      };
+      conversationSessions[hs.partner] = {
+        partner: hs.requester,
+        startTime,
+      };
+
+      // Log chat
+      const chats = loadChats();
+      chats.push({
+        requestedNumber: hs.requester,
+        selectedNumber: hs.partner,
+        time: startTime.toLocaleString("en-US", {
+          timeZone: "Asia/Colombo",
+        }),
+      });
+      saveChats(chats);
+
+      // Notify admin
+      await client.sendMessage(
+        LINKED_CHAT_ID,
+        `Match started between ${hs.requester} ↔ ${hs.partner}.`
+      );
+      console.log(`Match confirmed: ${hs.requester} ↔ ${hs.partner}`);
+
+      // Schedule automatic end/extension checks
+      scheduleSessionEnd(hs.requester, hs.partner);
+
+      // Clean up handshake
+      delete handshakeSessions[key];
+      return;
+    }
+  }
 
   // 1) Admin commands
   if (message.from === LINKED_CHAT_ID) {
@@ -153,15 +286,28 @@ client.on("message", async (message) => {
     return;
   }
 
-  // 2) Active 1‑min session?
+  // 2) Active 1‑minute (or extended) chat?
   const session = conversationSessions[senderNumber];
   if (session) {
+    const partner = session.partner;
     const text = message.body.trim().toLowerCase();
 
-    // 2a) If user wants to end-chat early
-    if (text === "end-chat") {
-      const partner = session.partner;
-      // Notify both sides
+    // --- Handle "yes" for extension ---
+    if (session.waitingForExtension && text === "yes") {
+      [senderNumber, partner].forEach((id) => {
+        if (conversationSessions[id]) {
+          conversationSessions[id].extensionApproved = true;
+          conversationSessions[id].waitingForExtension = false;
+        }
+      });
+      console.log(
+        `Extension approved by ${senderNumber} for session ${senderNumber}↔${partner}`
+      );
+      return;
+    }
+
+    // --- Handle early end ---
+    if (text === "end") {
       await client.sendMessage(
         `94${senderNumber}@c.us`,
         "Session ended by you"
@@ -170,21 +316,19 @@ client.on("message", async (message) => {
         `94${partner}@c.us`,
         "Session ended by your friend"
       );
-      // Clear session
       delete conversationSessions[senderNumber];
       delete conversationSessions[partner];
       console.log(
         `Session between ${senderNumber} and ${partner} ended by user.`
       );
     } else {
-      // 2b) Otherwise relay the message
-      const partnerChatId = `94${session.partner}@c.us`;
-      await client.sendMessage(partnerChatId, message.body);
+      // Relay all other messages
+      await client.sendMessage(`94${partner}@c.us`, message.body);
     }
-    return; // done
+    return;
   }
 
-  // 3) Forward all other messages to admin
+  // 3) Forward everything else to admin
   await client.sendMessage(
     LINKED_CHAT_ID,
     `From ${senderNumber}: ${message.body}`
@@ -193,68 +337,42 @@ client.on("message", async (message) => {
   const users = loadUsers();
   const user = users.find((u) => u.number === senderNumber);
 
-  // 4) "start" command to match
+  // 4) "start" command to initiate handshake
   if (user && user.verified && message.body.trim().toLowerCase() === "start") {
-    await message.reply("We will find a friend for you. Wait for a while..");
-
+    await message.reply("We will find a friend for you. Please wait...");
     const pool = users.filter(
       (u) =>
         u.number !== senderNumber &&
         u.verified &&
         u.gender === user.requestedGender
     );
-
     if (pool.length) {
       const pick = pool[Math.floor(Math.random() * pool.length)];
+      const requesterChatId = `94${senderNumber}@c.us`;
       const pickChatId = `94${pick.number}@c.us`;
+
+      const key = `${senderNumber}-${pick.number}`;
+      handshakeSessions[key] = {
+        requester: senderNumber,
+        partner: pick.number,
+      };
 
       await client.sendMessage(
         pickChatId,
-        "Hi, One friend is waiting for you."
+        `${user.nickname} is requesting to have a chat with you. Please reply within 30 seconds to accept.`
       );
-      console.log(`Matched ${senderNumber} ↔ ${pick.number}`);
+      console.log(`Handshake request sent: ${senderNumber} → ${pick.number}`);
 
-      // record session
-      const startTime = new Date();
-      conversationSessions[senderNumber] = {
-        partner: pick.number,
-        startTime,
-      };
-      conversationSessions[pick.number] = {
-        partner: senderNumber,
-        startTime,
-      };
-
-      // log to chats.json
-      const chats = loadChats();
-      chats.push({
-        requestedNumber: senderNumber,
-        selectedNumber: pick.number,
-        time: startTime.toLocaleString("en-US", {
-          timeZone: "Asia/Colombo",
-        }),
-      });
-      saveChats(chats);
-
-      // notify admin
-      await client.sendMessage(
-        LINKED_CHAT_ID,
-        `Match started between ${senderNumber} and ${pick.number}.`
-      );
-
-      // schedule automatic end after 1 minute
       setTimeout(async () => {
-        const active = conversationSessions[senderNumber];
-        if (active && active.partner === pick.number) {
-          await client.sendMessage(`94${senderNumber}@c.us`, "session ended");
-          await client.sendMessage(`94${pick.number}@c.us`, "session ended");
-          delete conversationSessions[senderNumber];
-          delete conversationSessions[pick.number];
-          console.log(
-            `Session between ${senderNumber} and ${pick.number} ended automatically.`
+        if (handshakeSessions[key]) {
+          delete handshakeSessions[key];
+          await client.sendMessage(
+            requesterChatId,
+            `${pick.nickname} did not respond to your request. You can try again by sending "start".`
           );
+          console.log(`No handshake response from ${pick.number}; cleaned up.`);
         }
-      }, 60 * 1000);
+      }, 30 * 1000);
     } else {
       await message.reply(
         "No matching friend found at the moment. Try again later."
