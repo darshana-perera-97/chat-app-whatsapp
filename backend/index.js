@@ -401,10 +401,10 @@ client.on("message", async (message) => {
       console.log(`${senderNumber} OTP mismatch.`);
     }
   } else if (user && user.verified) {
-    await message.reply("ℹ️ Your number is already verified.");
+    await message.reply("ℹ️ type 'start' to find a friend to chat...");
   } else {
     await message.reply(
-      "⚠️ Your number is not registered. Please register first."
+      "⚠️ Your number is not registered. Please register first. visit https://shorturl.at/iUxvN to get registed"
     );
   }
 
